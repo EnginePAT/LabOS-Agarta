@@ -1,0 +1,17 @@
+LabOS Agarta Plan
+-------------------------
+
+Goal:
+	Write an operating system for the x86_64 architecture targeting BIOS. It should have a shell, filesystem,
+	and a robust design.
+
+Steps to acheive the goal:
+	- Write a hello world os				[DONE]
+	- Load a stage2 bootloader				[DONE]
+	- Switch into protected mode				[DONE]
+	- Load a kernel						[DONE]
+	- Write a print/printf function
+	- Implement GDT, IDT, PIC timer, TSS
+	- Implement a keyboard drive and a basic shell
+	- Add a filesystem
+	- Add paging
