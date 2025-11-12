@@ -18,4 +18,6 @@ typedef unsigned char bool;
 #define true 1
 #define false 0
 
+typedef uint32_t size_t;
+
 #endif      // _STDINT_H

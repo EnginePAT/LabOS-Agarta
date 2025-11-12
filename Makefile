@@ -31,7 +31,7 @@ $(BUILD_DIR)/stage2.bin: $(SRC_DIR)/bootloader/stage2.asm
 # Kernel
 #
 $(BUILD_DIR)/full_kernel.bin: $(BUILD_DIR)/kernel_entry.o $(BUILD_DIR)/kernel.o $(BUILD_DIR)/stdio.o
-	$(LD) -Ttext 0x8000 -o $@ $^ --oformat binary
+	$(LD) -T src/linker.ld -o $@ $^ --oformat binary
 
 $(BUILD_DIR)/kernel_entry.o: $(SRC_DIR)/kernel/kernel_entry.asm
 	$(ASM) $< -f elf -o $@

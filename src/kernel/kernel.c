@@ -3,8 +3,10 @@
 void kernel_main();
 
 void kernel_main() {
-    const char* msg = "Hello world from kernel!!!! :D";
-    puts(msg);
-    
+    cputs("kernel@labos", VGA_GREEN);
+    cputs(":", VGA_WHITE);
+    cputs("~", VGA_LIGHT_BLUE);
+    cputs(" $", VGA_WHITE);
+
     return;
 }

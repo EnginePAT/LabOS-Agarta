@@ -23,10 +23,6 @@ start:
     ; Clear the screen
     call clear_screen
 
-    ; Print hello world message
-    mov si, msg_hello
-    call puts
-
     call disk_read
 
     jmp KERNEL_LOCATION

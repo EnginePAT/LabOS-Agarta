@@ -10,9 +10,6 @@ DATA_SEG equ GDT_data - GDT_start
 start:
     mov [BOOT_DRIVE], dl
 
-    mov si, msg_stage2
-    call puts
-
     call disk_read
 
     ; Switch into protected mode

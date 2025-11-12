@@ -1,82 +1,110 @@
-┌──(patrickdodwell㉿kali)-[~/Documents/LabOS-Agarta]
-└─$ make      
-nasm src/boot.asm -f bin -o build/boot.bin
-nasm src/stage2.asm -f bin -o build/stage2.bin
-nasm src/kernel/kernel_entry.asm -f elf -o build/kernel_entry.o
-i686-elf-gcc -ffreestanding -nostdlib -m32 -g -c src/kernel/kernel.c -o build/kernel.o
-i686-elf-ld -Ttext 0x8000 -o build/full_kernel.bin build/kernel_entry.o --oformat binary
-i686-elf-ld: build/kernel_entry.o: in function `_start':
-src/kernel/kernel_entry.asm:(.text+0x1): undefined reference to `kernel_main'
-make: *** [Makefile:34: build/full_kernel.bin] Error 1
-                                                                                                                      
-┌──(patrickdodwell㉿kali)-[~/Documents/LabOS-Agarta]
-└─$ 
+Something is causing a triple fault
 
+stdio.h
+#ifndef _STDIO_H
+#define _STDIO_H
+
+#include "stdint.h"
+
+#define VGA ((char*)0xb8000)
+#define VGA_WIDTH 80
+#define VGA_HEIGHT 25
+
+typedef enum {
+    VGA_BLACK        = 0x0,
+    VGA_BLUE         = 0x1,
+    VGA_GREEN        = 0x2,
+    VGA_CYAN         = 0x3,
+    VGA_RED          = 0x4,
+    VGA_MAGENTA      = 0x5,
+    VGA_BROWN        = 0x6,
+    VGA_LIGHT_GRAY   = 0x7,
+    VGA_DARK_GRAY    = 0x8,
+    VGA_LIGHT_BLUE   = 0x9,
+    VGA_LIGHT_GREEN  = 0xA,
+    VGA_LIGHT_CYAN   = 0xB,
+    VGA_LIGHT_RED    = 0xC,
+    VGA_LIGHT_MAGENTA= 0xD,
+    VGA_YELLOW       = 0xE,
+    VGA_WHITE        = 0xF
+} vga_color_t;
+
+int strlen(const char* str);
+void putc(char c, uint8_t color);
+void puts(const char* s);
+void cputs(const char* s, uint8_t color);              // Color puts
+
+#endif      // _STDIO_H
+
+stdio.c
+#include <stdio.h>
+
+static uint8_t cursor_col = 0;
+static uint8_t cursor_row = 0;
+
+int strlen(const char* str) {
+    uint32_t len = 0;
+    while (str[len] != '\0') {
+        len++;
+    }
+    return len;
+}
+
+void putc(char c, uint8_t color) {
+    if (c == '\n') {
+        cursor_col = 0;
+        cursor_row++;
+    } else {
+        VGA[(cursor_row * VGA_WIDTH + cursor_col) * 2] = c;
+        VGA[(cursor_row * VGA_WIDTH + cursor_col) * 2 + 1] = color;
+        cursor_col++;
+        if (cursor_col >= VGA_WIDTH) { // wrap line
+            cursor_col = 0;
+            cursor_row++;
+        }
+    }
+
+    // Simple scroll if we go past the last row
+    if (cursor_row >= VGA_HEIGHT) {
+        // Scroll screen up
+        for (int y = 1; y < VGA_HEIGHT; y++) {
+            for (int x = 0; x < VGA_WIDTH; x++) {
+                VGA[((y-1) * VGA_WIDTH + x) * 2] = VGA[(y * VGA_WIDTH + x) * 2];
+                VGA[((y-1) * VGA_WIDTH + x) * 2 + 1] = VGA[(y * VGA_WIDTH + x) * 2 + 1];
+            }
+        }
+        // Clear last row
+        for (int x = 0; x < VGA_WIDTH; x++) {
+            VGA[((VGA_HEIGHT-1) * VGA_WIDTH + x) * 2] = ' ';
+            VGA[((VGA_HEIGHT-1) * VGA_WIDTH + x) * 2 + 1] = 0x0f;
+        }
+        cursor_row = VGA_HEIGHT - 1;
+    }
+}
+
+void puts(const char* s) {
+    for (int i = 0; i < strlen(s); i++) {
+        putc(s[i], 0x0f); // white on black
+    }
+}
+
+void cputs(const char* s, uint8_t color) {
+    for (int i = 0; i < strlen(s); i++) {
+        putc(s[i], color);
+    }
+}
 
 kernel.c
+#include <stdio.h>
+
 void kernel_main();
 
 void kernel_main() {
-    *(char*)0xB8000 = 'Q';
+    const char* msg = "Hello world from kernel!!!! :D";
+    cputs("kernel@labos", VGA_GREEN);
+    cputs(":", VGA_WHITE);
+    cputs("~", VGA_LIGHT_BLUE);
+    cputs(" $", VGA_WHITE);
+
     return;
 }
-
-kernel_entry.asm
-section .text
-    global _start
-    [bits 32]
-_start:
-    extern kernel_main
-    call kernel_main
-    jmp $
-
-Makefile
-ASM=nasm
-CC=i686-elf-gcc
-LD=i686-elf-ld
-QEMU=qemu-system-x86_64
-
-CFLAGS=-ffreestanding -nostdlib -m32 -g -c
-
-
-SRC_DIR=src
-BUILD_DIR=build
-
-
-$(BUILD_DIR)/floppy.img: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/stage2.bin $(BUILD_DIR)/full_kernel.bin
-	dd if=/dev/zero of=$@ bs=512 count=2880
-	dd if=$(BUILD_DIR)/boot.bin of=$@ conv=notrunc
-	dd if=$(BUILD_DIR)/stage2.bin of=$@ bs=512 seek=1 conv=notrunc
-	dd if=$(BUILD_DIR)/full_kernel.bin of=$@ bs=512 seek=2 conv=notrunc
-
-
-#
-# Bootloader
-#
-$(BUILD_DIR)/boot.bin: $(SRC_DIR)/boot.asm
-	$(ASM) $< -f bin -o $@
-
-$(BUILD_DIR)/stage2.bin: $(SRC_DIR)/stage2.asm
-	$(ASM) $< -f bin -o $@
-
-
-#
-# Kernel
-#
-$(BUILD_DIR)/full_kernel.bin: $(BUILD_DIR)/kernel_entry.o $(BUILD_DIR)/kernel.o
-	$(LD) -Ttext 0x8000 -o $@ $< --oformat binary
-
-$(BUILD_DIR)/kernel_entry.o: $(SRC_DIR)/kernel/kernel_entry.asm
-	$(ASM) $< -f elf -o $@
-
-$(BUILD_DIR)/kernel.o: $(SRC_DIR)/kernel/kernel.c
-	$(CC) $(CFLAGS) $< -o $@
-
-
-clean:
-	rm -rf $(BUILD_DIR)/*
-
-
-run: $(BUILD_DIR)/floppy.img
-	$(QEMU) -hda $<
-
